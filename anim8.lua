@@ -1,3 +1,4 @@
+
 local anim8 = {
   _VERSION     = 'anim8 v2.1.0',
   _DESCRIPTION = 'An animation library for LÖVE',
@@ -166,46 +167,56 @@ local function parseIntervals(durations)
 end
 
 local Animationmt = { __index = Animation }
-local nop = function() end
 
-local function newAnimation(frames, durations, onLoop)
+local function newAnimation(image, frames, durations)
   local td = type(durations);
   if (td ~= 'number' or durations <= 0) and td ~= 'table' then
     error("durations must be a positive number. Was " .. tostring(durations) )
   end
-  onLoop = onLoop or nop
+
   durations = parseDurations(durations, #frames)
   local intervals, totalDuration = parseIntervals(durations)
   return setmetatable({
-      frames         = cloneArray(frames),
-      durations      = durations,
-      intervals      = intervals,
-      totalDuration  = totalDuration,
-      onLoop         = onLoop,
-      timer          = 0,
-      position       = 1,
-      status         = "playing",
-      flippedH       = false,
-      flippedV       = false
-    },
+    image          = image,
+    frames         = cloneArray(frames),
+    durations      = durations,
+    intervals      = intervals,
+    totalDuration  = totalDuration,
+  },
     Animationmt
   )
 end
 
 function Animation:clone()
-  local newAnim = newAnimation(self.frames, self.durations, self.onLoop)
-  newAnim.flippedH, newAnim.flippedV = self.flippedH, self.flippedV
-  return newAnim
+  return newAnimation(self.image, self.frames, self.durations)
 end
 
-function Animation:flipH()
-  self.flippedH = not self.flippedH
-  return self
-end
+-----------------------------------------------------------
 
-function Animation:flipV()
-  self.flippedV = not self.flippedV
-  return self
+local Status = {
+  PLAYING = 'playing',
+  PAUSED = 'paused'
+}
+
+local Player = {}
+local Playermt = { __index = Player }
+
+local nop = function() end
+
+local function newPlayer(animation, onLoop)
+  onLoop = onLoop or nop
+
+  return setmetatable({
+    animation = animation,
+    timer          = 0,
+    position       = 1,
+    status         = Status.PLAYING,
+    flippedH       = false,
+    flippedV       = false,
+    onLoop         = onLoop
+  },
+    Playermt
+  )
 end
 
 local function seekFrameIndex(intervals, timer)
@@ -223,47 +234,84 @@ local function seekFrameIndex(intervals, timer)
   return i
 end
 
-function Animation:update(dt)
-  if self.status ~= "playing" then return end
+-- TODO: Memoize delegated properties
+function Player:frames()
+  return self.animation.frames
+end
+
+function Player:image()
+  return self.animation.image
+end
+
+function Player:duration()
+  return self.animation.totalDuration
+end
+
+function Player:intervals()
+  return self.animation.intervals
+end
+
+function Player:flipH()
+  self.flippedH = not self.flippedH
+  return self
+end
+
+function Player:flipV()
+  self.flippedV = not self.flippedV
+  return self
+end
+
+function Player:frameAt(index)
+  return self:frames()[index]
+end
+
+function Player:frameCount()
+  return #self:frames()
+end
+
+function Player:update(dt)
+  if self.status ~= Status.PLAYING then return end
 
   self.timer = self.timer + dt
-  local loops = math.floor(self.timer / self.totalDuration)
+  local duration = self:duration()
+  local loops = math.floor(self.timer / duration)
   if loops ~= 0 then
-    self.timer = self.timer - self.totalDuration * loops
+    self.timer = self.timer - duration * loops
     local f = type(self.onLoop) == 'function' and self.onLoop or self[self.onLoop]
     f(self, loops)
   end
 
-  self.position = seekFrameIndex(self.intervals, self.timer)
+  self.position = seekFrameIndex(self:intervals(), self.timer)
 end
 
-function Animation:pause()
-  self.status = "paused"
+function Player:pause()
+  self.status = Status.PAUSED
 end
 
-function Animation:gotoFrame(position)
+function Player:gotoFrame(position)
   self.position = position
-  self.timer = self.intervals[self.position]
+  self.timer = self.animation.intervals[self.position]
 end
 
-function Animation:pauseAtEnd()
-  self.position = #self.frames
-  self.timer = self.totalDuration
+function Player:pauseAtEnd()
+  self.position = self:frameCount()
+  self.timer = self:duration()
   self:pause()
 end
 
-function Animation:pauseAtStart()
+function Player:pauseAtStart()
   self.position = 1
   self.timer = 0
   self:pause()
 end
 
-function Animation:resume()
-  self.status = "playing"
+function Player:resume()
+  self.status = Status.PLAYING
 end
 
-function Animation:draw(image, x, y, r, sx, sy, ox, oy, ...)
-  local frame = self.frames[self.position]
+function Player:draw(x, y, r, sx, sy, ox, oy, ...)
+  local frame = self:frameAt(self.position)
+
   if self.flippedH or self.flippedV then
     r,sx,sy,ox,oy = r or 0, sx or 1, sy or 1, ox or 0, oy or 0
     local _,_,w,h = frame:getViewport()
@@ -277,12 +325,14 @@ function Animation:draw(image, x, y, r, sx, sy, ox, oy, ...)
       oy = h - oy
     end
   end
-  love.graphics.draw(image, frame, x, y, r, sx, sy, ox, oy, ...)
+
+  love.graphics.draw(self:image(), frame, x, y, r, sx, sy, ox, oy, ...)
 end
 
 -----------------------------------------------------------
 
 anim8.newGrid       = newGrid
 anim8.newAnimation  = newAnimation
+anim8.newPlayer     = newPlayer
 
 return anim8
