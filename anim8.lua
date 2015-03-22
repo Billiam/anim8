@@ -157,31 +157,20 @@ local function parseDurations(durations, frameCount)
   return result
 end
 
-local function parseIntervals(durations)
-  local result, time = {0},0
-  for i=1,#durations do
-    time = time + durations[i]
-    result[i+1] = time
-  end
-  return result, time
-end
-
 local Animationmt = { __index = Animation }
 
 local function newAnimation(image, frames, durations)
-  local td = type(durations);
+  durations = durations or 1
+
+  local td = type(durations)
   if (td ~= 'number' or durations <= 0) and td ~= 'table' then
     error("durations must be a positive number. Was " .. tostring(durations) )
   end
 
-  durations = parseDurations(durations, #frames)
-  local intervals, totalDuration = parseIntervals(durations)
   return setmetatable({
     image          = image,
     frames         = cloneArray(frames),
-    durations      = durations,
-    intervals      = intervals,
-    totalDuration  = totalDuration,
+    durations      = parseDurations(durations, #frames),
   },
     Animationmt
   )
@@ -203,8 +192,18 @@ local Playermt = { __index = Player }
 
 local nop = function() end
 
-local function newPlayer(animation, onLoop)
+local function parseIntervals(durations, speed)
+  local result, time = {0},0
+  for i=1,#durations do
+    time = time + durations[i] * speed
+    result[i+1] = time
+  end
+  return result, time
+end
+
+local function newPlayer(animation, framerate, onLoop)
   onLoop = onLoop or nop
+  local intervals, totalDuration = parseIntervals(animation.durations, 1/framerate)
 
   return setmetatable({
     animation = animation,
@@ -213,7 +212,9 @@ local function newPlayer(animation, onLoop)
     status         = Status.PLAYING,
     flippedH       = false,
     flippedV       = false,
-    onLoop         = onLoop
+    onLoop         = onLoop,
+    intervals      = intervals,
+    totalDuration  = totalDuration
   },
     Playermt
   )
@@ -243,14 +244,6 @@ function Player:image()
   return self.animation.image
 end
 
-function Player:duration()
-  return self.animation.totalDuration
-end
-
-function Player:intervals()
-  return self.animation.intervals
-end
-
 function Player:flipH()
   self.flippedH = not self.flippedH
   return self
@@ -273,15 +266,14 @@ function Player:update(dt)
   if self.status ~= Status.PLAYING then return end
 
   self.timer = self.timer + dt
-  local duration = self:duration()
-  local loops = math.floor(self.timer / duration)
+  local loops = math.floor(self.timer / self.totalDuration)
   if loops ~= 0 then
-    self.timer = self.timer - duration * loops
+    self.timer = self.timer - self.totalDuration * loops
     local f = type(self.onLoop) == 'function' and self.onLoop or self[self.onLoop]
     f(self, loops)
   end
 
-  self.position = seekFrameIndex(self:intervals(), self.timer)
+  self.position = seekFrameIndex(self.intervals, self.timer)
 end
 
 function Player:pause()
@@ -290,12 +282,12 @@ end
 
 function Player:gotoFrame(position)
   self.position = position
-  self.timer = self.animation.intervals[self.position]
+  self.timer = self.intervals[self.position]
 end
 
 function Player:pauseAtEnd()
   self.position = self:frameCount()
-  self.timer = self:duration()
+  self.timer = self.totalDuration
   self:pause()
 end
 
