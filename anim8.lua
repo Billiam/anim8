@@ -139,19 +139,34 @@ end
 
 local function parseDurations(durations, frameCount)
   local result = {}
-  if type(durations) == 'number' then
-    for i=1,frameCount do result[i] = durations end
+
+  if type(durations) ~= 'table' then
+    for i=1,frameCount do result[i] = 1 end
   else
-    local min, max, step
+    -- normalize durations to a minumum value of 1
+    local lowestDuration
+
     for key,duration in pairs(durations) do
       assert(type(duration) == 'number', "The value [" .. tostring(duration) .. "] should be a number")
-      min, max, step = parseInterval(key)
-      for i = min,max,step do result[i] = duration end
-    end
-  end
 
-  if #result < frameCount then
-    error("The durations table has length of " .. tostring(#result) .. ", but it should be >= " .. tostring(frameCount))
+      if not lowestDuration or lowestDuration > duration then
+        lowestDuration = duration
+      end
+    end
+
+    assert(frameCount == 0 or lowestDuration > 0, "A frame durations should all be above zero, but the value [" .. tostring(lowestDuration) .. "] was detected")
+
+    local min, max, step
+    for key,duration in pairs(durations) do
+      min, max, step = parseInterval(key)
+      for i = min,max,step do
+        result[i] = duration / lowestDuration
+      end
+    end
+
+    if #result < frameCount then
+      error("The durations table has length of " .. tostring(#result) .. ", but it should be >= " .. tostring(frameCount))
+    end
   end
 
   return result
@@ -160,13 +175,6 @@ end
 local Animationmt = { __index = Animation }
 
 local function newAnimation(image, frames, durations)
-  durations = durations or 1
-
-  local td = type(durations)
-  if (td ~= 'number' or durations <= 0) and td ~= 'table' then
-    error("durations must be a positive number. Was " .. tostring(durations) )
-  end
-
   return setmetatable({
     image          = image,
     frames         = cloneArray(frames),
