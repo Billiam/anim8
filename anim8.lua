@@ -214,7 +214,7 @@ local function newPlayer(animation, framerate, onLoop)
   local intervals, totalDuration = parseIntervals(animation.durations, 1/framerate)
 
   return setmetatable({
-    animation = animation,
+    animation      = animation,
     timer          = 0,
     position       = 1,
     status         = Status.PLAYING,
