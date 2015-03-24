@@ -66,7 +66,9 @@ Explanation
 Grids
 -----
 
-Grids have only one purpose: To build groups of quads of the same size as easily as possible. In order to do this, they need to know only 2 things: the size of each quad and the size of the image they will be applied two. Each size is a width and a height, and those are the first 4 parameters of @anim8.newGrid@.
+Grids have only one purpose: To build groups of quads of the same size as easily as possible. In order to do this, they need to know only 2 things:
+the size of each quad and the size of the image they will be applied two.
+Each size is a width and a height, and those are the first 4 parameters of `anim8.newGrid`.
 
 Grids are just a convenient way of getting frames from a sprite. Frames are assumed to be distributed in rows and columns. Frame 1,1 is the one in the first row, first column.
 
@@ -139,7 +141,7 @@ Moves the animation to a given frame (frames start counting in 1).
 
 `Animation:pause()`
 
-Stops the animation from updating (@animation:update(dt)@ will have no effect)
+Stops the animation from updating (`animation:update(dt)` will have no effect)
 
 `Animation:resume()`
 
