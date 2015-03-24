@@ -3,7 +3,8 @@ anim8
 
 Animation library for [LÖVE](http://love2d.org).
 
-[![Build Status](https://travis-ci.org/Billiam/anim8.png?branch=master)](https://travis-ci.org/Billiam/anim8)
+[![Build Status](https://travis-ci.org/Billiam/anim8.svg?branch=master)](https://travis-ci.org/Billiam/anim8)
+[![Coverage Status](https://coveralls.io/repos/Billiam/anim8/badge.svg)](https://coveralls.io/r/Billiam/anim8)
 
 It divides animations into three parts: grids, framesets and animations.
 

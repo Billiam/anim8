@@ -27,9 +27,13 @@ before_install:
 
 install:
   - sudo -E luarocks install busted
+  - sudo luarocks install luacov-coveralls --server=http://rocks.moonscript.org/dev
+
+after_success:
+   - luacov-coveralls -c spec/.luacov
 
 script:
-  - sudo -E busted -v
+  - sudo -E busted -v -c
 
 notifications:
   email:
