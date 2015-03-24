@@ -3,17 +3,26 @@ anim8
 
 Animation library for [LÖVE](http://love2d.org).
 
-[![Build Status](https://travis-ci.org/kikito/anim8.png?branch=master)](https://travis-ci.org/kikito/anim8)
+[![Build Status](https://travis-ci.org/billiam/anim8.png?branch=master)](https://travis-ci.org/billiam/anim8)
 
-It divides animations into two parts: grids and animations.
+It divides animations into three parts: grids, framesets and animations.
 
 `anim8.newGrid(frameWidth, frameHeight, imageWidth, imageHeight, left, top, border)`:
 
 Creates a *Grid*. Grids are useful for quickly defining frames (in LÖVE terminology, they are called *Quads*. The last 3 parameters are optional.
 
-`anim8.newAnimation(frames, durations, onLoop)`:
+`anim8.newFrameset(image, frames, durations)`:
 
-Creates a new *Animation*. Animations can be updated and drawn (they need a target image to do that). `durations` can be a number or a table. `onLoop` is an optional function or method name.
+Creates a new *Frameset*. Framesets represent an image, a collection of frames, and their relative durations.
+`image` is a LÖVE image which will be drawn.
+`frames` an array of frames.
+`durations` an (optional) array of relative frame durations. If not provided, all frames will have same length.
+
+`anim8.newAnimation(frameset, framerate, onLoop)`:
+
+Creates a new *Animation*. Animations can be updated and drawn.
+`framerate` is an integer, given as number of frames per second.
+`onLoop` is an optional function or method name.
 
 LÖVE compatibility
 ==================
@@ -27,15 +36,17 @@ the version of anim8 which is compatible with your LÖVE.
 Example
 =======
 
-```
+```lua
 local anim8 = require 'anim8'
 
-local image, animation
+local animation
 
 function love.load()
-  image = love.graphics.newImage('path/to/image.png')
+  local image = love.graphics.newImage('path/to/image.png')
   local g = anim8.newGrid(32, 32, image:getWidth(), image:getHeight())
-  animation = anim8.newAnimation(g('1-8',1), 0.1)
+  local frameset = anim8.newFrameset(image, g('1-8',1))
+
+  animation = anim8.newAnimation(frameset, 10)
 end
 
 function love.update(dt)
@@ -43,7 +54,7 @@ function love.update(dt)
 end
 
 function love.draw()
-  animation:draw(image, 100, 200)
+  animation:draw(100, 200)
 end
 ```
 
@@ -78,18 +89,38 @@ Is equivalent to this:
 
 This is very convenient to use in animations.
 
-Animations
-----------
+Framesets
+---------
+Framesets are groups of frames, an image, and an optional set of frame durations.
 
-Animations are groups of frames that are interchanged every now and then.
+`anim8.newFrameset(image, frames, durations)`:
 
-`anim8.newAnimation(frames, durations, onLoop)`:
+`image` is a [Löve Drawable](https://love2d.org/wiki/Drawable) object.
 
 `frames` is an array of frames (Quads in LÖVE argot). You could provide your own quad array if you wanted to, but using a grid to get them is very convenient.
 
-`durations` is a number or a table. When it's a number, it represents the duration of all frames in the animation. When it's a table, it can represent different durations for different frames. You can specify durations for all frames individually, like this: `{0.1, 0.5, 0.1}` or you can specify durations for ranges of frames: `{['3-5']=0.2}`.
+`durations` is an optional table. It can represent different durations for different frames. You can specify durations for all frames individually, like this: `{1, 5, 1}` or you can specify durations for ranges of frames: `{['3-5']=1}`.
+A duration of `3` will be displayed for three times longer than a duration of `1`. The actual display time will be based on the animation framerate.
 
-`onLoop` is an optional parameter which can be a function or a string representing one of the animation methods. It does nothing by default. If specified, it will be called every time an animation "loops". It will have two parameters: the animation instance, and how many loops have been elapsed. The most usual value (appart from none) is the
+Framesets have the following methods:
+
+`Frameset:clone()`
+
+Creates a new frameset identical to the current one.
+
+Animations
+----------
+
+Animations have a collection of frames which can be cycled through. Animations have a state (`playing` or `paused`),
+a current position, may be rewound, updated and displayed.
+
+`anim8.newAnimation(frames, framerate, onLoop)`:
+
+`frames` is a reference to an anim8 `Frameset` which this animation will iterate over.
+
+`framerate` is a number indicating the number number of frames to play per second.
+
+`onLoop` is an optional parameter which can be a function or a string representing one of the animation methods. It does nothing by default. If specified, it will be called every time an animation "loops". It will have two parameters: the animation instance, and how many loops have been elapsed. The most usual value (apart from none) is the
 string 'pauseAtEnd'. It will make the animation loop once and then pause and stop on the last frame.
 
 Animations have the following methods:
@@ -98,9 +129,9 @@ Animations have the following methods:
 
 Use this inside `love.update(dt)` so that your animation changes frames according to the time that has passed.
 
-`Animation:draw(image, x,y, angle, sx, sy, ox, oy)`
+`Animation:draw(x, y, angle, sx, sy, ox, oy)`
 
-Draws the current frame in the specified coordinates with the right angle, scale and offset. These parameters work exacly the same way as in "love.graphics.drawq":https://love2d.org/wiki/love.graphics.drawq .
+Draws the current frame in the specified coordinates with the right angle, scale and offset. These parameters work exacly the same way as in [love.graphics.drawq](https://love2d.org/wiki/love.graphics.drawq).
 
 `Animation:gotoFrame(frame)`
 
@@ -114,17 +145,13 @@ Stops the animation from updating (@animation:update(dt)@ will have no effect)
 
 Unpauses an animation
 
-`Animation:clone()`
-
-Creates a new animation identical to the current one. The only difference is that its internal counter is reset to 0 (it's on the first frame).
-
 `Animation:flipH()`
 
 Flips an animation horizontally (left goes to right and viceversa). This means that the frames are simply drawn differently, nothing more.
 
 Note that this method does not create a new animation. If you want to create a new one, use the `clone` method.
 
-This method returns the animation, so you can do things like `local a = anim8.newAnimation(g(1,'1-10'), 0.1):flipV()`
+This method returns the animation, so you can do things like `local a = anim8.newAnimation(frameset):flipV()`
 
 `Animation:flipV()`
 
@@ -137,7 +164,6 @@ Moves the animation to its last frame and then pauses it.
 `Animation:pauseAtStart()`
 
 Moves the animation to its first frame and then pauses it.
-
 
 Installation
 ============
