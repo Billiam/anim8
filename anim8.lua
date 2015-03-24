@@ -129,7 +129,7 @@ end
 
 -----------------------------------------------------------
 
-local Animation = {}
+local Frameset = {}
 
 local function cloneArray(arr)
   local result = {}
@@ -172,20 +172,20 @@ local function parseDurations(durations, frameCount)
   return result
 end
 
-local Animationmt = { __index = Animation }
+local Framesetmt = { __index = Frameset }
 
-local function newAnimation(image, frames, durations)
+local function newFrameset(image, frames, durations)
   return setmetatable({
     image          = image,
     frames         = cloneArray(frames),
     durations      = parseDurations(durations, #frames),
   },
-    Animationmt
+    Framesetmt
   )
 end
 
-function Animation:clone()
-  return newAnimation(self.image, self.frames, self.durations)
+function Frameset:clone()
+  return newFrameset(self.image, self.frames, self.durations)
 end
 
 -----------------------------------------------------------
@@ -195,8 +195,8 @@ local Status = {
   PAUSED = 'paused'
 }
 
-local Player = {}
-local Playermt = { __index = Player }
+local Animation = {}
+local Animationmt = { __index = Animation }
 
 local nop = function() end
 
@@ -209,12 +209,12 @@ local function parseIntervals(durations, speed)
   return result, time
 end
 
-local function newPlayer(animation, framerate, onLoop)
+local function newAnimation(frameset, framerate, onLoop)
   onLoop = onLoop or nop
-  local intervals, totalDuration = parseIntervals(animation.durations, 1/framerate)
+  local intervals, totalDuration = parseIntervals(frameset.durations, 1/framerate)
 
   return setmetatable({
-    animation      = animation,
+    frameset       = frameset,
     timer          = 0,
     position       = 1,
     status         = Status.PLAYING,
@@ -224,7 +224,7 @@ local function newPlayer(animation, framerate, onLoop)
     intervals      = intervals,
     totalDuration  = totalDuration
   },
-    Playermt
+    Animationmt
   )
 end
 
@@ -244,33 +244,33 @@ local function seekFrameIndex(intervals, timer)
 end
 
 -- TODO: Memoize delegated properties
-function Player:frames()
-  return self.animation.frames
+function Animation:frames()
+  return self.frameset.frames
 end
 
-function Player:image()
-  return self.animation.image
+function Animation:image()
+  return self.frameset.image
 end
 
-function Player:flipH()
+function Animation:flipH()
   self.flippedH = not self.flippedH
   return self
 end
 
-function Player:flipV()
+function Animation:flipV()
   self.flippedV = not self.flippedV
   return self
 end
 
-function Player:frameAt(index)
+function Animation:frameAt(index)
   return self:frames()[index]
 end
 
-function Player:frameCount()
+function Animation:frameCount()
   return #self:frames()
 end
 
-function Player:update(dt)
+function Animation:update(dt)
   if self.status ~= Status.PLAYING then return end
 
   self.timer = self.timer + dt
@@ -284,32 +284,32 @@ function Player:update(dt)
   self.position = seekFrameIndex(self.intervals, self.timer)
 end
 
-function Player:pause()
+function Animation:pause()
   self.status = Status.PAUSED
 end
 
-function Player:gotoFrame(position)
+function Animation:gotoFrame(position)
   self.position = position
   self.timer = self.intervals[self.position]
 end
 
-function Player:pauseAtEnd()
+function Animation:pauseAtEnd()
   self.position = self:frameCount()
   self.timer = self.totalDuration
   self:pause()
 end
 
-function Player:pauseAtStart()
+function Animation:pauseAtStart()
   self.position = 1
   self.timer = 0
   self:pause()
 end
 
-function Player:resume()
+function Animation:resume()
   self.status = Status.PLAYING
 end
 
-function Player:draw(x, y, r, sx, sy, ox, oy, ...)
+function Animation:draw(x, y, r, sx, sy, ox, oy, ...)
   local frame = self:frameAt(self.position)
 
   if self.flippedH or self.flippedV then
@@ -331,8 +331,8 @@ end
 
 -----------------------------------------------------------
 
-anim8.newGrid       = newGrid
-anim8.newAnimation  = newAnimation
-anim8.newPlayer     = newPlayer
+anim8.newGrid      = newGrid
+anim8.newFrameset  = newFrameset
+anim8.newAnimation = newAnimation
 
 return anim8
